@@ -3,11 +3,13 @@ package dev.cernavskis.swanslaw.world.gen.feature;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.function.Predicate;
 
 import com.mojang.serialization.Codec;
 
 import dev.cernavskis.swanslaw.world.gen.feature.config.OreReplacerFeatureConfig;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
@@ -17,7 +19,6 @@ import net.minecraft.world.ISeedReader;
 import net.minecraft.world.gen.ChunkGenerator;
 import net.minecraft.world.gen.Heightmap;
 import net.minecraft.world.gen.feature.Feature;
-import net.minecraftforge.common.Tags;
 
 public class OreReplacerFeature extends Feature<OreReplacerFeatureConfig> {
   public OreReplacerFeature(Codec<OreReplacerFeatureConfig> codec) {
@@ -29,8 +30,19 @@ public class OreReplacerFeature extends Feature<OreReplacerFeatureConfig> {
     final int oreDepth = config.oreDepth;
     final int maxHeight = config.maxHeight;
     final Block replaceWith = Registry.BLOCK.get(new ResourceLocation(config.replaceWith));
+    final Predicate<Block> replaceable = (block) -> {
+      if (config.replaceBlocks.contains(block.getRegistryName().toString())) {
+        return true;
+      }
+      for (ResourceLocation tag : block.getTags()) {
+        if (config.replaceBlocks.contains("#" + tag.toString())) {
+          return true;
+        }
+      }
+      return false;
+    };
     
-    List<BlockPos> removePositions = new ArrayList<>(); // Store 
+    List<BlockPos> removePositions = new ArrayList<>(); // Store in list in case replaceWith is an open block
     for (int x = 0; x < 16; x++) {
       for (int z = 0; z < 16; z++) {
 
@@ -41,7 +53,7 @@ public class OreReplacerFeature extends Feature<OreReplacerFeatureConfig> {
 
         for (int y = heightPos.getY(); y > 0; y--) { //! Change the y < 0 in 1.17
           BlockPos changePos = heightPos.below(y);
-          if (shouldRemove(world, changePos, oreDepth)) {
+          if (shouldRemove(world, changePos, oreDepth, replaceable)) {
             removePositions.add(changePos);
           }
         }
@@ -56,8 +68,8 @@ public class OreReplacerFeature extends Feature<OreReplacerFeatureConfig> {
     return true;
   }
 
-  private boolean shouldRemove(ISeedReader world, BlockPos pos, int oreDepth) {
-    if (world.getBlockState(pos).getBlock().is(Tags.Blocks.ORES)) {
+  private boolean shouldRemove(ISeedReader world, BlockPos pos, int oreDepth, Predicate<Block> replaceable) {
+    if (replaceable.test(world.getBlockState(pos).getBlock())) {
       for (int x = -oreDepth; x < oreDepth; x++) {
         for (int y = -oreDepth; y < oreDepth; y++) {
           if (pos.getY() + y < 0) continue;
@@ -65,7 +77,7 @@ public class OreReplacerFeature extends Feature<OreReplacerFeatureConfig> {
             Vector3i offsetVec = new Vector3i(x, y, z);
             if (offsetVec.distManhattan(Vector3i.ZERO) > oreDepth) continue;
             BlockPos checkPos = pos.offset(offsetVec);
-            if (isOpenBlock(world.getBlockState(checkPos).getBlock())) {
+            if (isOpenBlock(world.getBlockState(checkPos))) {
               return false;
             }
           }
@@ -77,11 +89,13 @@ public class OreReplacerFeature extends Feature<OreReplacerFeatureConfig> {
     }
   }
 
-  private boolean isOpenBlock(Block block) {
+  private boolean isOpenBlock(BlockState blockstate) {
+    Block block = blockstate.getBlock();
     return 
       block == Blocks.AIR ||
       block == Blocks.CAVE_AIR ||
       block == Blocks.LAVA ||
-      block == Blocks.WATER;
+      block == Blocks.WATER ||
+      !blockstate.canOcclude();
   }
 }

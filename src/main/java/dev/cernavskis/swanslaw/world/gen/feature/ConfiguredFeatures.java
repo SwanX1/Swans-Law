@@ -20,7 +20,8 @@ public class ConfiguredFeatures {
       new OreReplacerFeatureConfig(
         Config.CONFIG.oreDepth.get(),
         Config.CONFIG.replaceWith.get(),
-        Config.CONFIG.maxHeight.get()
+        Config.CONFIG.maxHeight.get(),
+        (List<String>) Config.CONFIG.replaceBlocks.get()
       )
     )
   ).decorated(Placements.HEIGHTMAP);
