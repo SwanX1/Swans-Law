@@ -32,7 +32,7 @@ public class Config {
       .defineInRange("oreDepth", 6, 0, Integer.MAX_VALUE);
 
     replaceWith = builder
-      .comment("What should the ores* be replaced with?\n* - blocks in the forge:ores tag")
+      .comment("What should the blocks be replaced with?")
       .define("replaceWith", "minecraft:stone");
 
     maxHeight = builder
